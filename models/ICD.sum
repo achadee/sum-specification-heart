@@ -34,12 +34,20 @@ module ICD is
     rate : BPM
   end HRM;
 
+  ICDStates ::= normal | fib | tachy;
+  schema ICDS is
+  dec
+    is_on : bool;
+    icdStates : ICDStates
+  end ICDS;
+
   //The system state consists of a heart, a monitor, and an impulse generator
   schema state is
   dec
     heart : Heart;
     hrm : HRM;
-    generator : ImpulseGenerator
+    generator : ImpulseGenerator;
+    icd : ICDS
   end state;
 
   //Initially, the impulse is the minimum. The heart rate is
@@ -71,20 +79,19 @@ module ICD is
     hrm'.rate = min(BPM)
   end HRMInit;
 
-  ICDStates ::= normal | fib | tachy;
-  schema ICD is
+  schema IcdInit is
   dec
-    is_on : bool
-  end ICD;
-
-
-  schema init is
-  dec
-    icd' : ICD
+    icd' : ICDS
   pred
     not (icd'.is_on);
+    icd'.icdStates = normal
+  end IcdInit;
+
+  schema init is
+  pred
     HeartInit;
     ImpulseGeneratorInit;
+    IcdInit;
     HRMInit
   end init;
 
@@ -270,6 +277,15 @@ module ICD is
   //Tick the clock for the HRM, which reads the heart's blood
   //pressure if the HRM is on
   HRMTick == (HRMGetPressureOn or HRMGetPressureOff);
+
+  ////////////////////////////////////////////////////////////
+  // ICD Component code
+  ////////////////////////////////////////////////////////////
+  op schema IcdOn is
+  pred
+    icd'.is_on;
+    changes_only{icd}
+  end IcdOn;
 
   ////////////////////////////////////////////////////////////
   // Bringing the components together
