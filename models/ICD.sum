@@ -71,6 +71,12 @@ module ICD is
     hrm'.rate = min(BPM)
   end HRMInit;
 
+  schema ICD is
+  dec
+    is_on : bool
+  end ICD;
+
+
   schema init is
   pred
     HeartInit;
@@ -264,7 +270,7 @@ module ICD is
   ////////////////////////////////////////////////////////////
   // Bringing the components together
   ////////////////////////////////////////////////////////////
-
+  
   //The overall system tick
   Tick == (ImpulseGeneratorTick s_compose HeartTick s_compose HRMTick)
 
