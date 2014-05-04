@@ -71,6 +71,7 @@ module ICD is
     hrm'.rate = min(BPM)
   end HRMInit;
 
+  ICDStates ::= normal | fib | tachy;
   schema ICD is
   dec
     is_on : bool
