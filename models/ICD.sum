@@ -287,6 +287,12 @@ module ICD is
     changes_only{icd}
   end IcdOn;
 
+  op schema IcdOff is
+  pred
+    not (icd'.is_on);
+    changes_only{icd}
+  end IcdOff;
+
   ////////////////////////////////////////////////////////////
   // Bringing the components together
   ////////////////////////////////////////////////////////////
