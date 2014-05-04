@@ -78,7 +78,10 @@ module ICD is
 
 
   schema init is
+  dec
+    icd' : ICD
   pred
+    not (icd'.is_on);
     HeartInit;
     ImpulseGeneratorInit;
     HRMInit
