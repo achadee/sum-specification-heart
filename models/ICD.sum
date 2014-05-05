@@ -286,6 +286,27 @@ module ICD is
   ////////////////////////////////////////////////////////////
   // ICD Component code
   ////////////////////////////////////////////////////////////
+  axiom is
+  dec
+    sum : seq int --> int;
+    average : seq int --> int;
+    deviation : seq int --> int
+  pred
+    sum(<>) = 0;
+    forall ds : seq int | ds /= <> @  sum(ds) = head(ds) + sum(tail(ds));
+    forall ds : seq int @ average(ds) = sum(ds) div #ds;
+    deviation = average //////should be changed for real deviation
+  end;
+
+  axiom is
+  dec
+    sort : power int --> seq int
+  pred
+    sort({}) = <>;
+    forall ps : power int | ps /= {} @ 
+       sort(ps) = <min(ps)> ^ sort(ps diff {min(ps)})
+  end;
+
   op schema IcdOn is
   pred
     icd'.is_on;
@@ -300,12 +321,13 @@ module ICD is
 
   op schema IcdTick is
   dec
-    rate : BPM
+    rate : BPM;
+    impulse : Joules
   pred
     pre icd'.is_on;
     rate = HRMStatus.rate!;
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
-
+    icd'.icdStates = tachy <=> (deviation(icd'.heartRateHistory) > 5);
     changes_only{icd}
   end IcdTick;
 
@@ -313,6 +335,8 @@ module ICD is
   // Bringing the components together
   ////////////////////////////////////////////////////////////
   
+
+
   //The overall system tick
   Tick == (ImpulseGeneratorTick s_compose HeartTick s_compose HRMTick)
 

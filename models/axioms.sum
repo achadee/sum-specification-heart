@@ -10,10 +10,12 @@ module Axioms is
   dec
     sum : seq int --> int;
     average : seq int --> int
+    deviation : seq int --> int
   pred
     sum(<>) = 0;
     forall ds : seq int | ds /= <> @  sum(ds) = head(ds) + sum(tail(ds));
     forall ds : seq int @ average(ds) = sum(ds) div #ds
+    deviation = average; //////should be changed for real deviation
   end;
 
   //Take a set of integers and return them as a sequence in 
