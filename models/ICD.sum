@@ -42,7 +42,8 @@ module ICD is
     is_on : bool;
     icdStates : ICDStates;
     heartRateHistory : seq BPM;
-    fibrilationBPMLimit : BPM
+    fibrilationBPMLimit : BPM;
+    OnTachyCure : bool
   pred
     #heartRateHistory = MAX_HISTORY
   end ICDS;
@@ -90,6 +91,7 @@ module ICD is
     icd' : ICDS
   pred
     not (icd'.is_on);
+    not (icd'.OnTachyCure);
     icd'.icdStates = normal;
     forall i : 1..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1;
     icd'.fibrilationBPMLimit = 110
@@ -357,9 +359,10 @@ module ICD is
     pre icd'.is_on;
     rate = HRMStatus.rate!;
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
-    icd'.icdStates = tachy <=> (deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal);
-    icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib));
-    fibrilationCure;
+    icd'.icdStates = tachy <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure));
+    icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib)) => fibrilationCure;
+    
+    //tachycardiaCure;
     changes_only{icd,generator}
   end IcdTick;
 
