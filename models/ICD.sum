@@ -4,6 +4,7 @@ module ICD is
   BPM == -1 .. 300;
   Joules == 0 .. 45;
 
+
   //A schema representing a heart
   schema Heart is
   dec
@@ -38,7 +39,10 @@ module ICD is
   schema ICDS is
   dec
     is_on : bool;
-    icdStates : ICDStates
+    icdStates : ICDStates;
+    heartRateHistory : seq int
+  pred
+    #heartRateHistory = 5
   end ICDS;
 
   //The system state consists of a heart, a monitor, and an impulse generator
@@ -84,7 +88,8 @@ module ICD is
     icd' : ICDS
   pred
     not (icd'.is_on);
-    icd'.icdStates = normal
+    icd'.icdStates = normal;
+    forall i : 0..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1
   end IcdInit;
 
   schema init is
