@@ -42,7 +42,7 @@ module ICD is
     icdStates : ICDStates;
     heartRateHistory : seq BPM
   pred
-    #heartRateHistory < 5
+    #heartRateHistory = 5
   end ICDS;
 
   //The system state consists of a heart, a monitor, and an impulse generator
@@ -299,11 +299,9 @@ module ICD is
   end IcdOff;
 
   op schema IcdTick is
-  dec
-    rate : BPM
   pred
     pre icd'.is_on;
-    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(5,rate)};
+    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(5,hrm.rate)};
     changes_only{icd}
   end IcdTick;
 
