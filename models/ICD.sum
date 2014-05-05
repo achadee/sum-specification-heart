@@ -40,7 +40,8 @@ module ICD is
   dec
     is_on : bool;
     icdStates : ICDStates;
-    heartRateHistory : seq BPM
+    heartRateHistory : seq BPM;
+    fibrilationBPMLimit : BPM
   pred
     #heartRateHistory = MAX_HISTORY
   end ICDS;
@@ -89,7 +90,8 @@ module ICD is
   pred
     not (icd'.is_on);
     icd'.icdStates = normal;
-    forall i : 1..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1
+    forall i : 1..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1;
+    icd'.fibrilationBPMLimit = 110
   end IcdInit;
 
   schema init is
@@ -319,6 +321,27 @@ module ICD is
     changes_only{icd}
   end IcdOff;
 
+  op schema IcdSetFibrilationBPMLimitOn is
+  dec
+    rate? : BPM
+  pred
+    pre (icd.is_on);
+    icd'.fibrilationBPMLimit = rate?;
+    icd'.is_on = icd.is_on;
+    changes_only{icd}
+  end IcdSetFibrilationBPMLimitOn;
+
+  op schema IcdSetFibrilationBPMLimitOff is
+  dec
+    rate? : BPM
+  pred
+    pre (not (icd.is_on));
+    changes_only{}
+  end IcdSetFibrilationBPMLimitOff;
+
+  IcdSetFibrilationBPMLimit == (IcdSetFibrilationBPMLimitOn or IcdSetFibrilationBPMLimitOff);
+
+
   op schema IcdTick is
   dec
     rate : BPM;
@@ -327,7 +350,8 @@ module ICD is
     pre icd'.is_on;
     rate = HRMStatus.rate!;
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
-    icd'.icdStates = tachy <=> (deviation(icd'.heartRateHistory) > 5);
+    icd'.icdStates = tachy <=> (deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal);
+    icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib));
     changes_only{icd}
   end IcdTick;
 
