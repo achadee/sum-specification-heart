@@ -361,7 +361,7 @@ module ICD is
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
     icd'.icdStates = tachy <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure));
     icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib)) => fibrilationCure;
-    
+    //icd'.icdStates = normal => ImpulseGeneratorSetImpulse{0/impulse?};
     //tachycardiaCure;
     changes_only{icd,generator}
   end IcdTick;
