@@ -3,7 +3,7 @@ module ICD is
   //Data types for the ICD system
   BPM == -1 .. 300;
   Joules == 0 .. 45;
-
+  MAX_HISTORY == 5;
 
   //A schema representing a heart
   schema Heart is
@@ -42,7 +42,7 @@ module ICD is
     icdStates : ICDStates;
     heartRateHistory : seq BPM
   pred
-    #heartRateHistory = 5
+    #heartRateHistory = MAX_HISTORY
   end ICDS;
 
   //The system state consists of a heart, a monitor, and an impulse generator
@@ -301,7 +301,7 @@ module ICD is
   op schema IcdTick is
   pred
     pre icd'.is_on;
-    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(5,hrm.rate)};
+    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,hrm.rate)};
     changes_only{icd}
   end IcdTick;
 
