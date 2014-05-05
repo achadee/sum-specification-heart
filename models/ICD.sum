@@ -299,9 +299,13 @@ module ICD is
   end IcdOff;
 
   op schema IcdTick is
+  dec
+    rate : BPM
   pred
     pre icd'.is_on;
-    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,hrm.rate)};
+    rate = HRMStatus.rate!;
+    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
+
     changes_only{icd}
   end IcdTick;
 
