@@ -40,9 +40,9 @@ module ICD is
   dec
     is_on : bool;
     icdStates : ICDStates;
-    heartRateHistory : seq int
+    heartRateHistory : seq BPM
   pred
-    #heartRateHistory = 5
+    #heartRateHistory < 5
   end ICDS;
 
   //The system state consists of a heart, a monitor, and an impulse generator
@@ -89,7 +89,7 @@ module ICD is
   pred
     not (icd'.is_on);
     icd'.icdStates = normal;
-    forall i : 0..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1
+    forall i : 1..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1
   end IcdInit;
 
   schema init is
@@ -297,6 +297,15 @@ module ICD is
     not (icd'.is_on);
     changes_only{icd}
   end IcdOff;
+
+  op schema IcdTick is
+  dec
+    rate : BPM
+  pred
+    pre icd'.is_on;
+    icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(5,rate)};
+    changes_only{icd}
+  end IcdTick;
 
   ////////////////////////////////////////////////////////////
   // Bringing the components together
