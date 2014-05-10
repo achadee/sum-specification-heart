@@ -2,6 +2,7 @@ module ICD is
 
   //Data types for the ICD system
   BPM == -1 .. 300;
+  MAX_PULSES == 0 .. 9;
   Joules == 0 .. 45;
   MAX_HISTORY == 5;
   FIBRILATION_PULSE == 30;
@@ -42,13 +43,23 @@ module ICD is
     is_on : bool;
     icdStates : ICDStates;
     heartRateHistory : seq BPM;
-    fibrilationBPMLimit : BPM;
-    OnTachyCure : bool
+    tachyBPMLimit : BPM;
+    OnTachyCure : bool;
+
+    //limit the amount of pulses by creating a strict set
+    pulseCount : MAX_PULSES;
+
+    //The interval between pulses
+    resetValue : nat;
+
+    //The count till the next pulse
+    countTicks: nat
   pred
     #heartRateHistory = MAX_HISTORY
   end ICDS;
 
-  //The system state consists of a heart, a monitor, and an impulse generator
+
+ //The system state consists of a heart, a monitor, and an impulse generator
   schema state is
   dec
     heart : Heart;
@@ -56,7 +67,6 @@ module ICD is
     generator : ImpulseGenerator;
     icd : ICDS
   end state;
-
   //Initially, the impulse is the minimum. The heart rate is
   //unconstrained, except that it cannot be negative
   schema HeartInit is
@@ -93,17 +103,23 @@ module ICD is
     not (icd'.is_on);
     not (icd'.OnTachyCure);
     icd'.icdStates = normal;
-    forall i : 1..#icd'.heartRateHistory @ icd'.heartRateHistory(i) = -1;
-    icd'.fibrilationBPMLimit = 110
+    icd'.heartRateHistory = <min(BPM),min(BPM),min(BPM),min(BPM),min(BPM)>;
+    icd'.tachyBPMLimit = 110;
+    icd'.pulseCount = 9;
+    icd'.resetValue = 0;
+    icd'.countTicks = 0
   end IcdInit;
 
   schema init is
+
   pred
     HeartInit;
     ImpulseGeneratorInit;
     IcdInit;
     HRMInit
   end init;
+
+   
 
   ////////////////////////////////////////////////////////////
   // Helper functions for the system
@@ -133,7 +149,7 @@ module ICD is
   dec
     HeartDefaultChange : BPM
   pred
-    HeartDefaultChange = 1
+    HeartDefaultChange = 20
   end;
 
   //For the purpose of animation, we specify a crude update:
@@ -324,25 +340,25 @@ module ICD is
     changes_only{icd}
   end IcdOff;
 
-  op schema IcdSetFibrilationBPMLimitOn is
+  op schema IcdSettachyBPMLimitOn is
   dec
     rate? : BPM
   pred
     pre (icd.is_on);
-    icd'.fibrilationBPMLimit = rate?;
+    icd'.tachyBPMLimit = rate?;
     icd'.is_on = icd.is_on;
     changes_only{icd}
-  end IcdSetFibrilationBPMLimitOn;
+  end IcdSettachyBPMLimitOn;
 
-  op schema IcdSetFibrilationBPMLimitOff is
+  op schema IcdSettachyBPMLimitOff is
   dec
     rate? : BPM
   pred
     pre (not (icd.is_on));
     changes_only{}
-  end IcdSetFibrilationBPMLimitOff;
+  end IcdSettachyBPMLimitOff;
 
-  IcdSetFibrilationBPMLimit == (IcdSetFibrilationBPMLimitOn or IcdSetFibrilationBPMLimitOff);
+  IcdSettachyBPMLimit == (IcdSettachyBPMLimitOn or IcdSettachyBPMLimitOff);
 
   op schema fibrilationCure is
   pred
@@ -351,16 +367,52 @@ module ICD is
     changes_only{generator}
   end fibrilationCure;
 
+  op schema setNextShock is
+  pred
+    pre (icd'.is_on and icd'.icdStates = tachy and not (icd'.pulseCount = 0) );
+    icd'.countTicks = icd.resetValue;
+    //deliver shock
+    changes_only{generator, icd}
+  end setNextShock;
+
+  op schema decrementTicks is
+  pred
+    pre (not (icd.countTicks = 0) and not (icd.pulseCount = 0));
+    icd'.countTicks = icd.countTicks - 1
+  end decrementTicks;
+
+
+  op schema tachyCure is
+  pred
+    pre (icd'.is_on and not (icd'.icdStates = tachy));
+    icd'.resetValue = 600 div icd.tachyBPMLimit + 15;
+    icd'.icdStates = tachy;
+    changes_only{icd}
+  end tachyCure;
+
   op schema IcdTick is
   dec
     rate : BPM;
     impulse : Joules
   pred
     pre icd'.is_on;
+    rate = 111;
     rate = HRMStatus.rate!;
+    // store heart rate history
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
-    icd'.icdStates = tachy <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure));
-    icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib)) => fibrilationCure;
+    
+    // determine if a fibbliration has occured
+    icd'.icdStates = fib <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure)) => fibrilationCure;
+    
+
+
+    // if a shock count has expired reset it for the next shot count
+    icd.countTicks = 0 and not (icd.pulseCount = 0) => setNextShock;
+
+    // count until the next impulse
+    not (icd.countTicks = 0) and not (icd.pulseCount = 0) => decrementTicks;
+
+    rate > icd.tachyBPMLimit and not(icd.icdStates = tachy) => tachyCure;
     //icd'.icdStates = normal => ImpulseGeneratorSetImpulse{0/impulse?};
     //tachycardiaCure;
     changes_only{icd,generator}
