@@ -314,12 +314,14 @@ module ICD is
 
   op schema IcdOn is
   pred
+    pre (hrm'.is_on and generator'.is_on);
     icd'.is_on;
     changes_only{icd}
   end IcdOn;
 
   op schema IcdOff is
   pred
+    pre (not(hrm'.is_on and generator'.is_on));
     not (icd'.is_on);
     changes_only{icd}
   end IcdOff;
@@ -351,13 +353,21 @@ module ICD is
     changes_only{generator}
   end fibrilationCure;
 
+  op schema zeroImpulseIfNormalState is
+  pred
+    pre (icd'.is_on and icd'.icdStates = normal);
+    generator'.impulse = min(Joules);
+    changes_only{generator}
+  end zeroImpulseIfNormalState;
+
   op schema IcdTick is
   dec
     rate : BPM;
     impulse : Joules
   pred
-    pre icd'.is_on;
+    pre (icd'.is_on and hrm'.is_on and generator'.is_on);
     rate = HRMStatus.rate!;
+    zeroImpulseIfNormalState;
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
     icd'.icdStates = tachy <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure));
     icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib)) => fibrilationCure;
@@ -371,9 +381,10 @@ module ICD is
   ////////////////////////////////////////////////////////////
   
 
-
+  On == (HRMOn s_compose ImpulseGeneratorOn s_compose IcdOn);
+  Off == (HRMOff s_compose ImpulseGeneratorOff s_compose IcdOff);
   //The overall system tick
-  Tick == (ImpulseGeneratorTick s_compose HeartTick s_compose HRMTick)
+  Tick == (ImpulseGeneratorTick s_compose HeartTick s_compose HRMTick s_compose IcdTick)
 
 end ICD
 
