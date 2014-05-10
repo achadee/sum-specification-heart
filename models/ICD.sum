@@ -53,6 +53,7 @@ module ICD is
   dec
     heart : Heart;
     hrm : HRM;
+    redundantHrm : HRM;
     generator : ImpulseGenerator;
     icd : ICDS
   end state;
@@ -80,10 +81,12 @@ module ICD is
   //Initially, there are no readings, and the monitor is off
   schema HRMInit is
   dec
-    hrm' : HRM
+    hrm' : HRM;
+    redundantHrm' : HRM
   pred
-    not (hrm'.is_on);
-    hrm'.rate = min(BPM)
+    not (hrm'.is_on and redundantHrm'.is_on);
+    hrm'.rate = min(BPM);
+    redundantHrm'.rate = min(BPM)
   end HRMInit;
 
   schema IcdInit is
@@ -244,33 +247,41 @@ module ICD is
   pred
     hrm'.is_on;
     hrm'.rate = hrm.rate;
-    changes_only {hrm}
+    redundantHrm'.is_on;
+    redundantHrm'.rate = redundantHrm.rate;
+    changes_only {hrm, redundantHrm}
   end HRMOn;
 
   //Turn off the HRM
   op schema HRMOff is
   pred
-    not (hrm'.is_on);
+    not (hrm'.is_on and redundantHrm'.is_on);
     hrm'.rate = hrm.rate;
-    changes_only {hrm}
+    redundantHrm'.rate = redundantHrm.rate;
+    changes_only {hrm, redundantHrm}
   end HRMOff;
 
   //Models reading the heart's blood pressure when the generator is on
   op schema HRMGetPressureOn is
   pred
-    pre (hrm.is_on);
+    pre (hrm.is_on and redundantHrm.is_on);
     hrm'.rate = heart.rate;
-    hrm'.is_on = hrm.is_on;
-    changes_only {hrm}
+    redundantHrm'.rate = heart.rate;
+    //the HRM system remains on if two readings are equal
+    hrm'.is_on <=> (hrm'.rate = redundantHrm'.rate and hrm'.is_on);
+    redundantHrm'.is_on <=> (hrm'.rate = redundantHrm'.rate and redundantHrm'.is_on);
+    changes_only {hrm, redundantHrm}
   end HRMGetPressureOn;
 
   //Models reading the heart's blood pressure when the generator is off
   op schema HRMGetPressureOff is
   pred
-    pre (not (hrm.is_on));
+    pre (not (hrm.is_on and redundantHrm.is_on));
     hrm'.rate = min(BPM);
     hrm'.is_on = hrm.is_on;
-    changes_only {hrm}
+    redundantHrm'.rate = min(BPM);
+    redundantHrm'.is_on = redundantHrm.is_on;
+    changes_only {hrm, redundantHrm}
   end HRMGetPressureOff;
 
   //Get the current status of the HRM
