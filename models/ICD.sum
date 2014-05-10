@@ -371,6 +371,14 @@ module ICD is
     changes_only{generator}
   end zeroImpulseIfNormalState;
 
+  op schema ifHRMFailing is
+  pred
+    //turns off ICD if HRM failing
+    //HRM fails if the reading is very much different from history
+    (average(icd.heartRateHistory) - HRMStatus.rate! > 10) => not (icd'.is_on);
+    changes_only{icd}
+  end ifHRMFailing;
+  
   op schema IcdTick is
   dec
     rate : BPM;
@@ -379,6 +387,7 @@ module ICD is
     pre (icd'.is_on and hrm'.is_on and generator'.is_on);
     rate = HRMStatus.rate!;
     zeroImpulseIfNormalState;
+    ifHRMFailing;
     icd'.heartRateHistory = tail(icd.heartRateHistory) ^ {(MAX_HISTORY,rate)};
     icd'.icdStates = tachy <=> ((deviation(icd'.heartRateHistory) > 5 and icd.icdStates = normal) or (icd.icdStates = tachy and icd'.OnTachyCure));
     icd'.icdStates = fib <=> (rate > icd.fibrilationBPMLimit and not(icd.icdStates = fib)) => fibrilationCure;
